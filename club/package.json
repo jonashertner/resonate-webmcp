@@ -4,6 +4,6 @@
   "type": "module",
   "description": "The club's worker. Nothing here is served to a browser and nothing in CI installs it. It exists so that a deploy is made by a wrangler version this repository names, at a recorded integrity hash, rather than by whatever npx resolved that morning, against a worker whose compatibility_date is fixed. It is separate from the root package so that the job which installs a browser tree does not also install this one.",
   "devDependencies": {
-    "wrangler": "4.123.0"
+    "wrangler": "4.127.1"
   }
 }
