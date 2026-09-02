@@ -12,6 +12,6 @@
     "verify:web": "npm test && node tools/visible.mjs && npm run web:check"
   },
   "devDependencies": {
-    "@playwright/test": "1.56.1"
+    "@playwright/test": "1.62.1"
   }
 }
