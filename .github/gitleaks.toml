@@ -1,0 +1,24 @@
+title = "Resonate secret scan"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated local copies and published RFC 9180 test vectors"
+paths = [
+  '''^\.claude/worktrees/''',
+  '''^_site/''',
+  '''^test/fixtures/hpke-p256\.json$''',
+]
+
+[[allowlists]]
+description = "Literal non-secret values used by tests and launch examples"
+regexTarget = "match"
+regexes = [
+  '''tc_0123456789abcdefghjkm''',
+  '''sk_live_abcdefghij1234567890''',
+  '''0123456789abcdef0123456789abcdef''',
+  '''resonate\.places\.v1''',
+  '''\$\{?SK\}?:''',
+  '''rk_live_\.\.\.:''',
+]

@@ -1,0 +1,95 @@
+name: test
+# There is no push trigger here, and the reason is a machine rather than a
+# preference. `deploy` carries its own copy of both jobs below and gates the
+# publish on them, so a push to main used to start two identical three-engine
+# suites in the same second against the same runner pool. They are not
+# independent of each other: on 78d17d0 the pair raced, this workflow went
+# green, and the copy inside `deploy` lost a firefox context to
+# `browserContext.newPage: Test timeout of 45000ms exceeded while setting up
+# "page"` before a single assertion in that file had run. 536 passed, one
+# never started, and a release was held back over a runner rather than over
+# the code.
+#
+# So the division is by what a revision is for. One that is about to be
+# published is tested by the workflow that publishes it. This one answers for
+# everything that is not main yet, which is where a required check has to be
+# able to speak anyway.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Actions are pinned to a full commit sha rather than to a tag, because a tag
+# is a moving pointer somebody else controls. The trailing comment is the
+# release that sha was. Nothing here pushes, so no checkout keeps its
+# credentials afterwards.
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # every job here is capped, for the reason written out in full beside the
+    # browser job in pages.yml: a step that stalls rather than fails is the one
+    # a workflow waits on forever
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: every module parses
+        run: |
+          for f in js/*.js sw.js tools/*.mjs club/src/*.js; do node --check "$f" || exit 1; done
+      - name: the invariants a hostile link must not break
+        run: node --test test/*.test.mjs club/test/*.test.mjs
+      - name: the vendored argon2 matches its committed digest
+        run: cd vendor/argon2 && shasum -a 256 -c SHA256SUMS
+      # a grep here saw seven documents and none of the strings inside js/*.js,
+      # which is where most of this app's copy lives and where the next em-dash
+      # will appear. the scan below reads the copy and not the comments.
+      - name: no em-dash reaches a reader
+        run: node tools/visible.mjs
+      - name: the web payload contains only the public app
+        run: npm run web:check
+      - name: dependency and secret fallback
+        run: bash .github/scripts/security-fallback.sh
+
+  # a parser cannot see a control a keyboard could not reach, a word pushed off
+  # a narrow screen, or a shared place that left the device. this job can
+  browser:
+    runs-on: ubuntu-latest
+    # the image, the uid and the arithmetic are all explained beside the same
+    # job in pages.yml, which is the copy that gates a release
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+      # the runner's own uid: the checkout writes into a workspace the host
+      # owns, and a root container would leave it files it cannot clean up
+      options: --user 1001 --ipc=host
+    # 55 = 50 for the suite, five for the image, the checkout, node, `npm ci`
+    # and the report uploaded when something is red. The suite carries its own
+    # 50 rather than leaning on this one, so a suite that stops moving fails by
+    # name; `cancelled` on the job line names nothing, which is exactly what
+    # made the second failure above take a morning to read.
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: the app, driven in three engines
+        timeout-minutes: 50
+        run: npx playwright test
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: what-the-browser-saw
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

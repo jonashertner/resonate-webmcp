@@ -1,0 +1,24 @@
+node_modules/
+test-results/
+playwright-report/
+_site/
+.DS_Store
+/output/
+/tmp/
+# wrangler's local simulator state. it is also the reason `wrangler kv key list`
+# answers `[]` for any namespace at all unless `--remote` is passed.
+.wrangler/
+# the lock file is committed: CI installs from it, and a browser driver that
+# drifts version by version proves nothing
+
+# where a real Stripe key would land if it ever landed on this disk.
+#
+# `wrangler dev` reads .dev.vars by default, so it is the file any tutorial
+# tells you to create, and none of them mentions that it sits inside a git
+# repository. Nothing in club/LAUNCH.md asks for one, which is the reason to
+# write this rule now rather than after: a rule added the day the file appears
+# is a rule added one commit too late.
+.dev.vars
+.dev.vars.*
+.env
+.env.*

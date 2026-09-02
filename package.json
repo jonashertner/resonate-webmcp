@@ -1,0 +1,17 @@
+{
+  "name": "resonate",
+  "private": true,
+  "type": "module",
+  "description": "A personal atlas. The app itself has no dependencies and no build step; these exist only so a browser can be driven in CI.",
+  "scripts": {
+    "test": "node --test test/*.test.mjs club/test/*.test.mjs",
+    "test:browser": "playwright test",
+    "serve": "node tools/dev.mjs",
+    "web:stage": "node tools/stage-web.mjs",
+    "web:check": "node tools/check-web.mjs",
+    "verify:web": "npm test && node tools/visible.mjs && npm run web:check"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
