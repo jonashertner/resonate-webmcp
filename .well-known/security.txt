@@ -1,0 +1,5 @@
+Contact: mailto:resonateselect@proton.me
+Expires: 2027-08-01T00:00:00.000Z
+Policy: https://resonate.select/SECURITY.md
+Preferred-Languages: en
+Canonical: https://resonate.select/.well-known/security.txt

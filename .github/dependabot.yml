@@ -1,0 +1,43 @@
+# The workflows pin every action to a full commit sha, which is the point: a
+# tag is a pointer somebody else can move. The cost of a pin is that it never
+# moves on its own, including away from a version that has since been found to
+# leak its runner's token. This is what moves it: a pull request, naming the
+# release, that a human reads before the pin changes.
+#
+# The root npm tree is Playwright and nothing that reaches a browser. The
+# club's tree is separate on purpose (club/package.json), because a worker
+# deploy and a test runner should not be able to drag each other forward. The
+# Docker Dependabot reads the small Dockerfile under .github/playwright. The
+# release test requires its FROM line and both workflow containers to agree, so
+# an image update proposal cannot pass until all three pins move together.
+version: 2
+# The challenge snapshot is frozen through judging. Keep Dependabot configured
+# and re-enable proposals by restoring these limits after September 22, 2026.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: ci
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: npm
+    directory: /club
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: docker
+    directory: /.github/playwright
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 0
+    commit-message:
+      prefix: ci

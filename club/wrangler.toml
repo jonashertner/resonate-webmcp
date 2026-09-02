@@ -1,0 +1,165 @@
+name = "resonate-club"
+main = "src/worker.js"
+compatibility_date = "2026-08-01"
+
+# One address, and no second one.
+#
+# workers.dev is on unless it is turned off, and a preview url is a second
+# address for the same code that nobody audits and no policy names. The page's
+# connect-src names exactly one origin; the worker answers on exactly one.
+workers_dev = false
+preview_urls = false
+
+# The one address, written down rather than clicked.
+#
+# A custom domain attached in the dashboard exists only in the dashboard, and
+# this file already argues the other way about the KV namespace id: a live
+# worker whose configuration exists nowhere in git is a club nobody can rebuild,
+# including you. Declared here, the address is in the repository, every deploy
+# re-asserts it, and it is the same string the page's connect-src and `SITE`
+# below already name. Cloudflare still creates and owns the DNS record; if one
+# already exists for this hostname the deploy refuses with `Custom Domains
+# already exist for these domains` rather than overwriting anything.
+#
+# This sits above every `[table]` header for the reason the KV comment gives.
+routes = [
+  { pattern = "club.resonate.select", custom_domain = true }
+]
+
+# Not silence, and not a transcript either.
+#
+# A paid backup with no diagnostic signal is a black box: when a member says
+# "it stopped saving" there has to be something to look at. What must not be
+# kept is the request itself, which is where a membership key, a session id and
+# a path parameter live. Invocation logs off, deliberate events on.
+[observability]
+enabled = true
+[observability.logs]
+invocation_logs = false
+
+# read-compatible membership/subscription mirrors and the thirty-day event
+# fast-path cache. Authoritative subscription state and dedupe live in the
+# SUBSCRIPTIONS object below. Never ciphertext.
+#
+# Written as a table array rather than a bare `kv_namespaces = [...]`, and it
+# has to stay that way. In TOML a bare key after a `[table]` header belongs to
+# that table, so a `[vars]` section written above this line silently turned the
+# whole binding into an environment variable called `kv_namespaces`: no env.BOX
+# at all, and every member request answering 500 the first time anyone paid.
+# `wrangler deploy --dry-run` prints the bindings it actually resolved, which is
+# the only place that mistake is visible before production.
+[[kv_namespaces]]
+binding = "BOX"
+id = "9ceb0e7a799248cf9f784125ae647faf"
+
+# the ciphertext, under names that are random and never reused.
+#
+# `jurisdiction` is load-bearing and wrangler will not write it for you. The
+# bucket was created with `-J eu`, which Cloudflare documents as a guarantee
+# that objects are stored in the EU rather than the best effort a location hint
+# gives, and it cannot be changed afterwards. On success wrangler printed a
+# snippet with no jurisdiction and a binding renamed to `resonate_club_vaults`;
+# following it would point this binding at a bucket in the default jurisdiction
+# that does not exist. Every `wrangler r2` command about this bucket needs
+# `-J eu` too, or it reports a bucket that is not there.
+[[r2_buckets]]
+binding = "VAULTS"
+bucket_name = "resonate-club-vaults"
+jurisdiction = "eu"
+
+# the pointers: one object per membership, holding the revision and two object
+# names; during erasure it durably holds only the ids R2 still has to delete
+[[durable_objects.bindings]]
+name = "VAULT"
+class_name = "Vault"
+
+# the letters, one object per membership, at a route derived from the key.
+# it holds ciphertext, a length and an arrival time, and it has never seen a
+# membership key: nothing here maps a route back to a member.
+[[durable_objects.bindings]]
+name = "LETTERBOX"
+class_name = "Letterbox"
+
+# the attempts, counted where counting works. one object per hashed caller,
+# and each one deletes itself once it has been quiet for two windows.
+[[durable_objects.bindings]]
+name = "METER"
+class_name = "Meter"
+
+# one strongly-consistent event history per Stripe subscription. KV below it
+# remains a read-compatible mirror for existing memberships and migrations.
+[[durable_objects.bindings]]
+name = "SUBSCRIPTIONS"
+class_name = "Subscription"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Vault", "Meter"]
+
+# A new tag rather than an edit to v1. A migration that has already run is a
+# fact about the deployed worker, and changing it in this file does not change
+# what happened: wrangler refuses a deploy whose migration history disagrees
+# with the one it applied.
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["Letterbox"]
+
+[[migrations]]
+tag = "v3"
+new_sqlite_classes = ["Subscription"]
+
+# Where the club stands, and where the page that may call it is served from.
+#
+# One origin answers and one origin asks. The allowed origin is derived from
+# this, so a staging worker pointed at a staging site cannot be called by the
+# live page, and the live worker cannot be called by anything else.
+#
+# This table sits last on purpose: everything below a `[table]` header belongs
+# to it, so a binding written after this line would quietly become a variable.
+[vars]
+SITE = "https://resonate.select"
+# The Price id: CHF 48 a year, tax-inclusive, Swiss francs only, and the only
+# price new checkouts are created at. A session at any other price is refused
+# although Stripe says it was paid. It is not a secret and belongs here in the
+# open; the sandbox and live-mode ids are different strings, and deploying with
+# the wrong one is the way a launch takes real money against a test
+# configuration.
+STRIPE_PRICE = "price_1U4rRY3lqXOT6qEQd3D0zWBm"
+# Every price the door still admits, comma separated, and none of them is sold
+# at. A Stripe Price cannot be edited: changing what a membership costs means
+# creating a new one. Without this, a member who paid at last year's price, lost
+# their key and still holds their join secret would present a session at a price
+# the door no longer knows, and be locked out of their own vault by a change
+# they had nothing to do with. Add the old id here on the day the price moves.
+STRIPE_PRICE_ALSO = ""
+
+# secrets, set with `wrangler secret put`:
+#   STRIPE_SECRET          rk_… restricted, and it needs exactly three
+#                          resources, named as the dashboard names them:
+#                            Checkout Sessions: Write   (write implies read,
+#                              and the club creates its own sessions)
+#                            Subscriptions: Read        (the session is fetched
+#                              with the subscription expanded, and Stripe
+#                              requires a permission for each expanded object;
+#                              the price, currency and interval live only in
+#                              that expansion)
+#                            Customer Portal: Write     (under Billing. There
+#                              is no resource called "Billing Portal Sessions";
+#                              looking for that name will not find it)
+#                          A key missing one is answered with the club's own
+#                          sentence and never as a refused payment.
+#   STRIPE_WEBHOOK_SECRET  whsec_… from the webhook endpoint you create. Set it
+#                          in the same minute the endpoint is created: until it
+#                          is here, every delivery is answered 400.
+#   MINT_SECRET            32 random bytes, hex, and the one value in this file
+#                          with no rollback. Membership keys are derived from
+#                          it, so two doors opening at once for one payment
+#                          agree on the key instead of minting two. Setting a
+#                          new one does not fail loudly: it re-keys every member
+#                          at once, their stored key stops resolving, and a
+#                          recovery hands them a different key over an empty
+#                          vault while their envelope sits in R2 addressed by
+#                          nothing. Record it somewhere safe BEFORE it is set,
+#                          and never set it twice. It is the same value in test
+#                          and in live. The worker keeps a fingerprint of it and
+#                          refuses to mint if it has changed.

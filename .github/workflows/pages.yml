@@ -1,0 +1,374 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# the floor for every job. `pages: write` and `id-token: write` are the right
+# to publish bytes to resonate.select, and they used to be granted here, which
+# gave them to `browser` as well: a job that runs `npm ci` and
+# `npx playwright install` and so executes install scripts from a dependency
+# tree this repository does not own. Any one of those could have published
+# whatever it liked to the page that takes the money. They are granted on the
+# one job that deploys and nowhere else. A job-level block replaces this one
+# rather than adding to it, so `contents: read` is repeated there.
+permissions:
+  contents: read
+
+# never cancel a deployment already in flight: the pages service holds a
+# per-site lock, and a cancelled run leaves that lock wedged
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Actions are pinned to a full commit sha rather than to a tag, because a tag
+# is a moving pointer somebody else controls and `@v4` is repointed by its
+# author whenever they choose. The trailing comment is the release that sha
+# was, so a human can still read what is running. Nothing in these workflows
+# pushes, so no checkout keeps its credentials afterwards.
+#
+# The pin is one level deep, and that is worth saying rather than implying:
+# upload-pages-artifact resolves `actions/upload-artifact@v4` itself, at run
+# time, inside the one job that holds `pages: write`. That is the trust
+# boundary GitHub ships and this repository does not close it.
+jobs:
+  # nothing is published that has not passed its tests on this exact revision:
+  # a green deploy used to mean only that the files went out
+  test:
+    runs-on: ubuntu-latest
+    # half a minute of work, so ten minutes is not a budget, it is the line
+    # past which this job has stopped doing anything
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: every module parses
+        run: |
+          for f in js/*.js sw.js tools/*.mjs club/src/*.js; do node --check "$f" || exit 1; done
+      - name: the invariants a hostile link must not break
+        run: node --test test/*.test.mjs club/test/*.test.mjs
+      - name: the vendored argon2 matches its committed digest
+        run: cd vendor/argon2 && shasum -a 256 -c SHA256SUMS
+      # a grep here saw seven documents and none of the strings inside js/*.js,
+      # which is where most of this app's copy lives and where the next em-dash
+      # will appear. the scan below reads the copy and not the comments.
+      - name: no em-dash reaches a reader
+        run: node tools/visible.mjs
+      - name: the web payload contains only the public app
+        run: npm run web:check
+      - name: dependency and secret fallback
+        run: bash .github/scripts/security-fallback.sh
+
+  # the same revision, driven in three engines. it runs beside the job above
+  # rather than after it, so honesty costs minutes and not a deploy window
+  browser:
+    runs-on: ubuntu-latest
+    # The three engines, and every system library they want, already inside
+    # the image, from a registry that is not an ubuntu mirror.
+    #
+    # This was `playwright install --with-deps`, which asks a mirror nobody
+    # here chooses for about 114 MB of the libraries webkit wants. On 19 August
+    # 2026 that mirror answered Ign to every suite and then went quiet: two
+    # consecutive runs sat in that one step for 1h48m each, this group never
+    # cancels, an uncapped job holds it, and the tests never started. That is
+    # why anything here is capped at all. Capped at 45, the next release met
+    # the same mirror slower rather than deader, `Fetched 114 MB in 32min 13s
+    # (59.0 kB/s)`, spent 33 of its 45 minutes there, and had its suite killed
+    # with twelve minutes on the clock. The job read `cancelled`. Three
+    # releases held back by a machine nobody here owns, and nothing wrong with
+    # any of the three revisions.
+    #
+    # A budget cannot make a mirror faster; it can only choose who goes hungry.
+    # So the fetch is gone rather than rationed. The tag is the version in
+    # package.json and test/release.test.mjs holds the two equal; the digest
+    # binds that readable tag to one immutable image. Playwright refuses
+    # browsers that do not match the package driving them, and that refusal
+    # surfaces in the engines, a long way from the line that caused it.
+    container:
+      image: mcr.microsoft.com/playwright:v1.56.1-noble@sha256:f1e7e01021efd65dd1a2c56064be399f3e4de00fd021ac561325f2bfbb2b837a
+      # `--user 1001` is the runner's own uid: the checkout writes into a
+      # workspace the host owns, and a root container would leave it files it
+      # cannot clean up. `--ipc=host` is playwright's own documented
+      # requirement, and the one thing here that is about the browsers rather
+      # than the files: without it chromium runs out of memory and crashes.
+      # It is not offered as an explanation of anything webkit or firefox has
+      # done on this runner; it is a flag that should have been here from the
+      # first commit that introduced the container.
+      options: --user 1001 --ipc=host
+    # 55 = 50 for the suite, five for the image, the checkout, node, `npm ci`
+    # and the report uploaded when something is red. The suite carries its own
+    # 50 rather than leaning on this one, so a suite that stops moving fails by
+    # name; `cancelled` on the job line names nothing, which is exactly what
+    # made the second failure above take a morning to read.
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci
+      - name: the app, driven in three engines
+        timeout-minutes: 50
+        run: npx playwright test
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: what-the-browser-saw
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  deploy:
+    needs: [test, browser]
+    # the only job that may publish, and it installs nothing
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    # The one job with no cap, on purpose. Every other job here is capped so a
+    # stall cannot hold the group, but a timeout is a cancellation, and the
+    # note above `concurrency` is the reason not to cancel this one: the pages
+    # service holds a per-site lock and a deployment killed halfway leaves it
+    # wedged. A publish that hangs is a worse thing to walk away from than a
+    # publish that is slow, so this one is watched by a person rather than by
+    # a number. Do not add timeout-minutes here without answering that.
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: stage the public allowlist
+        run: node tools/stage-web.mjs
+      # CARTO answers a missing or invalid basemap key with HTTP 200 and paints
+      # the error into the PNG. Reachability therefore proves nothing. Check
+      # both drawings before publishing: a bad key must hold the release back,
+      # not become something the post-deploy smoke is first to discover.
+      - name: day and night receive authenticated map tiles
+        run: |
+          carto_key=$(sed -n "s/^const CARTO_KEY = '\([^']*\)'.*$/\1/p" _site/js/map.js)
+          case "$carto_key" in cb1_*) ;; *) echo "no issued CARTO basemap credential"; exit 1;; esac
+          for style in light_all dark_all; do
+            authenticated=$(mktemp)
+            anonymous=$(mktemp)
+            curl -fsSL --retry 3 --retry-all-errors --max-time 30 \
+              "https://a.basemaps.cartocdn.com/$style/14/8537/5740@2x.png?key=$carto_key&ci=$GITHUB_SHA" \
+              -o "$authenticated"
+            curl -fsSL --retry 3 --retry-all-errors --max-time 30 \
+              "https://a.basemaps.cartocdn.com/$style/14/8537/5740@2x.png?ci=$GITHUB_SHA" \
+              -o "$anonymous"
+            signature=$(od -An -tx1 -N8 "$authenticated" | tr -d ' \n')
+            [ "$signature" = 89504e470d0a1a0a ] || { echo "$style did not return a PNG"; exit 1; }
+            if cmp -s "$authenticated" "$anonymous"; then
+              echo "$style still receives CARTO's anonymous warning tile"
+              exit 1
+            fi
+            echo "$style authenticated"
+            rm -f "$authenticated" "$anonymous"
+          done
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: _site
+          # v5 tars with `--exclude=.[^/]*` and defaults this to false, which is
+          # every dot-entry at every level and not just the two named beside it.
+          # v3 carried them. So the bump on 20 August 2026 quietly stopped
+          # publishing `.well-known/security.txt`, and the artifact went from
+          # sixty-three entries to sixty-one with nothing red: the three deploys
+          # after the bump all died in `browser`, so `smoke` was skipped and
+          # never once looked. The first run that reached it said 404, twenty
+          # times, on the one file this repository publishes an address in.
+          #
+          # `.git` and `.github` stay excluded by the action's own two lines, and
+          # the allowlist above never stages them either.
+          include-hidden-files: true
+      # deploy-pages cancels the deployment when its wait runs out, so the
+      # wait is the whole truth: no continue-on-error, no polling afterwards
+      # to paper over a deployment that is already dead.
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
+        with:
+          timeout: 600000
+
+  # a separate job, so a green deploy that serves the wrong bytes still fails
+  smoke:
+    needs: deploy
+    runs-on: ubuntu-latest
+    env:
+      SITE_URL: ${{ needs.deploy.outputs.page_url }}
+    # concurrency is workflow-scoped and never cancels, so a curl that hangs
+    # here queues every later push to main behind it, including a revert
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: stage the payload this job expects to find
+        run: node tools/stage-web.mjs
+      # Two steps used to live here and neither one proved what it said.
+      #
+      # The wait looked for the version marker out of index.html on the live
+      # site, and a marker that was not bumped is already there: the previous
+      # deploy answered on the first try, in under a second, and the job went
+      # green having established that some earlier release exists. PR #6 was a
+      # live example. The reachability walk then asked only for a 200, which
+      # says something answered and not that it answered with this build.
+      #
+      # Waiting and comparing cannot be separated without one of them going
+      # vacuous, which is what a digest on index.html alone would still do on
+      # any commit that does not touch index.html. So it is one loop: it keeps
+      # asking until every regular file staged from this checkout is byte for
+      # byte the live file, and gives up after five minutes naming the ones
+      # that were not. The one explicit large-file exception is checked for
+      # reachability in the following step.
+      - name: the site serves this build, byte for byte
+        run: |
+          site=${SITE_URL%/}
+          mapfile -d '' staged < <(find _site -type f -print0 | sort -z)
+          [ "${#staged[@]}" -gt 0 ] || { echo "the staged site is empty"; exit 1; }
+          byte_exceptions=(vendor/leaflet/leaflet.js)
+          for i in $(seq 1 20); do
+            bad=
+            for local in "${staged[@]}"; do
+              p=${local#_site/}
+              except=
+              for candidate in "${byte_exceptions[@]}"; do
+                [ "$p" = "$candidate" ] && except=1
+              done
+              [ -n "$except" ] && continue
+              body=$(mktemp)
+              # the query string is never read by the server and exists to get
+              # past any cache sitting between this runner and the origin
+              code=$(curl -s --max-time 30 -o "$body" -w '%{http_code}' "$site/$p?ci=$i")
+              if [ "$code" != 200 ]; then bad="$bad $p($code)"
+              elif ! cmp -s "$body" "$local"; then bad="$bad $p(not this build)"
+              fi
+              rm -f "$body"
+            done
+            if [ -z "$bad" ]; then
+              echo "every file is this build, after $((i * 15))s"
+              exit 0
+            fi
+            echo "attempt $i:$bad"
+            sleep 15
+          done
+          echo "the site never served this build"
+          exit 1
+      # The explicit byte-comparison exception: a large asset this job has no reason to
+      # pull in full, twenty times over. It still has to answer.
+      #
+      # This was assets/intro.mp4 until the film was replaced by a drawn
+      # evening and deleted. Leaflet is the heaviest thing left that the loop
+      # above does not compare, and it is the right heir for a second reason:
+      # without it there is no map, which is most of the app.
+      - name: the heavy asset answers
+        run: |
+          site=${SITE_URL%/}
+          code=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' "$site/vendor/leaflet/leaflet.js")
+          echo "vendor/leaflet/leaflet.js $code"
+          [ "$code" = 200 ]
+      - name: the repository's machinery is not published
+        run: |
+          site=${SITE_URL%/}
+          for p in .git/config .github/workflows/pages.yml test/atlas.test.mjs .claude/launch.json tools/dev.mjs tools/stage-web.mjs club/src/worker.js \
+                   club/src/validate.js tools/mint-key.mjs club/package.json club/LAUNCH.md \
+                   club/src/vault.js club/src/meter.js club/mock.mjs club/test/vault.test.mjs \
+                   club/test/checkout.test.mjs test/browser/club.spec.mjs \
+                   package.json package-lock.json playwright.config.mjs test/browser/atlas.spec.mjs \
+                   WEB-RELEASE.md ios/App/App.xcodeproj/project.pbxproj dist-native/index.html; do
+            # Pages can briefly answer 503 from an edge that has just accepted
+            # a deployment. Retry only transport and server failures: a 200,
+            # redirect, or any other definitive answer must still fail this
+            # privacy boundary immediately rather than being retried away.
+            code=
+            for attempt in 1 2 3 4; do
+              code=$(curl -s --max-time 30 -o /dev/null -w '%{http_code}' \
+                "$site/$p?ci=$GITHUB_SHA-$attempt")
+              [ "$code" = 404 ] && break
+              case "$code" in
+                000|5??) sleep "$attempt" ;;
+                *) break ;;
+              esac
+            done
+            echo "$p $code"
+            [ "$code" = 404 ] || exit 1
+          done
+      # the one automated thing that would catch a worker left pointing at
+      # localhost after a deploy. guarded on the door being open, because
+      # while CLUB_URL is empty there is no club hostname to ask.
+      - name: the club still answers the site it serves
+        run: |
+          # a failed lookup must not read as a shut door. the declaration has
+          # to be found; an empty value is the shut case and nothing else is.
+          decl=$(grep -oE "CLUB_URL = '[^']*'" js/club.js | head -1)
+          if [ -z "$decl" ]; then echo "CLUB_URL is not where it was in js/club.js"; exit 1; fi
+          origin=${decl#*\'}; origin=${origin%\'}
+          if [ -z "$origin" ]; then echo "the door is shut, nothing to ask"; exit 0; fi
+          echo "asking $origin"
+          hdr=$(curl -s -i --max-time 20 -X OPTIONS "$origin/membership" \
+                  -H 'Origin: https://resonate.select' \
+                  -H 'Access-Control-Request-Method: GET' \
+                | grep -i '^access-control-allow-origin' || true)
+          echo "${hdr:-no allow-origin header came back}"
+          printf '%s' "$hdr" | grep -qi 'https://resonate.select' || exit 1
+      # the one automated thing that would catch a live desk under a build
+      # telling people that nothing is charged.
+      #
+      # `TESTING` in js/club.js is a claim about a machine, and the machine's
+      # answer lives in `wrangler secret put`, where neither the suite nor the
+      # step above can see it. The failure is silent and it runs one way: the
+      # worker already refuses a test session against a live desk, so somebody
+      # obeying the app and typing a test card is turned away, and somebody
+      # typing a real card is charged for a year having just read that nothing
+      # is charged. Both halves of the pair are asserted here because only here
+      # do both exist at once.
+      - name: the desk agrees with what this build says about it
+        run: |
+          decl=$(grep -oE "CLUB_URL = '[^']*'" js/club.js | head -1)
+          if [ -z "$decl" ]; then echo "CLUB_URL is not where it was in js/club.js"; exit 1; fi
+          origin=${decl#*\'}; origin=${origin%\'}
+          if [ -z "$origin" ]; then echo "the door is shut, nothing to ask"; exit 0; fi
+          testing=$(grep -oE 'export const TESTING = (true|false)' js/club.js | grep -oE '(true|false)$')
+          if [ -z "$testing" ]; then echo "TESTING is not where it was in js/club.js"; exit 1; fi
+          price=$(grep -oE '^STRIPE_PRICE = "[^"]*"' club/wrangler.toml | sed 's/.*"\(.*\)"/\1/')
+          if [ -z "$price" ]; then echo "STRIPE_PRICE is not where it was in club/wrangler.toml"; exit 1; fi
+          said=$(curl -s --max-time 20 "$origin/desk")
+          echo "$origin/desk said: ${said:-nothing at all}"
+          # `jq -r '.live // empty'` was written here first and is wrong in the
+          # one direction that matters: jq's alternative operator treats `false`
+          # as absent, so an honest sandbox desk answered empty and read as a
+          # desk that had said nothing. Every sandbox release would have gone
+          # red, and the check that fires on a live desk would have looked
+          # correct because the only case ever walked by hand was that one.
+          live=$(printf '%s' "$said" | jq -r '.live' 2>/dev/null || true)
+          if [ "$live" != true ] && [ "$live" != false ]; then
+            echo "the desk did not say what it is. an older worker, or one that is down"
+            exit 1
+          fi
+          if [ "$testing" = true ] && [ "$live" = true ]; then
+            echo "this build says no money changes hands and the desk is taking real money"
+            exit 1
+          fi
+          if [ "$testing" = false ] && [ "$live" = false ]; then
+            echo "this build is selling a membership and the desk is a sandbox"
+            exit 1
+          fi
+          ready=$(printf '%s' "$said" | jq -r '.ready')
+          [ "$ready" = true ] || { echo "the desk is missing one of its secrets"; exit 1; }
+          served=$(printf '%s' "$said" | jq -r '.price')
+          if [ "$served" != "$price" ]; then
+            echo "the desk sells at $served and this repository says $price"
+            exit 1
+          fi
+          echo "the desk agrees: live=$live, price=$served"
