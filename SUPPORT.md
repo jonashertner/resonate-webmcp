@@ -25,6 +25,9 @@ tools**, use ChatGPT Work or Codex with GPT-5.6 Sol or Terra, and open Resonate
 in the built-in browser. There is no Resonate account, API key, plugin, or
 separate MCP server to connect.
 
+Site tools are not currently available in Enterprise or Edu workspaces, and
+GPT-5.6 Luna does not expose them.
+
 In Resonate, open **Settings**, then **assistant access**.
 
 If the browser offers direct tools, press **Allow access**. These Resonate tools
