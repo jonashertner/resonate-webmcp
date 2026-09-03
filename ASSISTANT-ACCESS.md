@@ -14,7 +14,7 @@ not yet chosen how to start the atlas, it brings that human setup forward and as
 to retry afterward, still without reading data. If the person
 presses **Allow access**, the browser replaces that review tool with five data tools. They can
 summarize and search the atlas, including the recommendation trail on disclosed records, show
-one item, or prepare a place or a list on screen. Those five tools are registered only after
+one item, or prepare a place or a collection on screen. Those five tools are registered only after
 that choice, only in this page, and never for another origin. The choice remains on in this
 browser until the person presses **Stop access**. Turning it off unregisters the five tools and
 restores only the zero-data review tool.
@@ -130,7 +130,7 @@ what was checked, and on what date.
 
 The browser tools take a proposal and never an edit. A place proposal is drawn on the map
 and laid out field by field. A person reads it and presses **Add to my atlas** before a
-record exists. It begins as *want to go*. A list proposal opens the ordinary list composer;
+record exists. It begins as *want to go*. A collection proposal opens the ordinary composer;
 closing it untouched saves nothing, and sharing remains a separate review and press.
 
 A proposal may reach: a name, a point, an address, a city, a country, a link, a line about

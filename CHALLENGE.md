@@ -20,10 +20,10 @@ assistant could work with this context only through a manually exported copy or
 fragile DOM automation. WebMCP gives it narrow, typed access to the live atlas
 the person is already using, under that page's existing disclosure rules.
 
-The result is not a headless API. The assistant can orient, search trusted
-recommendations, open an item, and prepare a place or collection. Every proposal
-appears in the ordinary interface. The person reviews it and makes the lasting
-decision.
+The result is not a headless API. The tools let an assistant orient, search
+trusted recommendations, open an item, and prepare a place or collection. Every
+proposal appears in the ordinary interface. The person reviews it and makes the
+lasting decision.
 
 ## What the experience can do
 
@@ -38,9 +38,9 @@ decision.
 - Prepare a sourced place or a collection from exact search-result ids.
 - Revoke all data tools immediately from the page or another tab.
 
-The assistant cannot save, delete, publish, share, read the People list, or mark
-a visit. A visit is first-person testimony, so `prepare_place` has no status
-field and every proposed place begins as **Want to go**.
+These WebMCP tools cannot save, delete, publish, share, read the People list, or
+mark a visit. A visit is first-person testimony, so `prepare_place` has no
+status field and every proposed place begins as **Want to go**.
 
 ## Human and agent, together
 
@@ -56,7 +56,7 @@ The interaction has three explicit states:
 3. **After revocation:** one abort signal cancels outstanding calls and removes
    all five data tools. The zero-data review door returns.
 
-The product rule is: **the assistant finds and prepares; the person decides and
+The WebMCP rule is: **the assistant finds and prepares; the person decides and
 commits.**
 
 ## Technical implementation
@@ -71,7 +71,7 @@ It includes:
 - a 1,450-byte result ceiling and cursor pagination bound to both filters and
   the exact disclosed result set;
 - read-only and untrusted-content annotations;
-- invocation cancellation, registration timeouts, atomic tool replacement,
+- invocation cancellation, registration timeouts, fail-closed tool replacement,
   and back-forward-cache and cross-tab revocation guards;
 - one outward-disclosure policy shared by links, files, print, and assistants;
   links, files, and assistants use the same disclosure builder, while print
@@ -98,34 +98,112 @@ extended the prototype:
   added native structured results, strict schemas, bounded pagination, explicit
   effects, cancellation, timeouts, and revocation safety.
 - [`c5a183b`](https://github.com/jonashertner/resonate/commit/c5a183b8ea84968962658f50a884cda57dbbb804)
-  added the zero-data pre-consent tool, atomic replacement, accessible approval,
+  added the zero-data pre-consent tool, fail-closed replacement, accessible approval,
   and adversarial cross-tab coverage.
 - The current release makes already-disclosed recommendation provenance a
   first-class overview, search filter, result, and read-only review surface.
 
-This repository is intentionally a one-commit audited release snapshot. It is
-not a claim that the whole application was created during the challenge. The
-public, timestamped development record remains available in the original
-development repository. The complete qualifying comparison runs from the last
-pre-period baseline to the September 2 submission build:
+This repository began as a one-commit audited release snapshot. It is not a
+claim that the whole application was created during the challenge. The public,
+timestamped development record remains available in the original development
+repository. The core qualifying comparison runs from the last pre-period
+baseline to the September 2 release candidate:
 [`c957ceb...d52219b`](https://github.com/jonashertner/resonate/compare/c957ceb65ef329cd078f15e68212d869eddc6f5e...d52219b54ac900d4f8a18b932d5c9596eacee378).
-Judges should evaluate only the WebMCP extension documented here and in that
-record.
+The only later commit in this challenge repository is a September 3,
+pre-deadline refinement of the consent handoff, agent guidance, responsive
+tests, judge instructions, and matching gallery frame. Judges should evaluate
+only the WebMCP extension documented here and in those records.
 
 ## Judge walkthrough
 
-1. Open [resonate.select](https://resonate.select/) in ChatGPT's in-app browser.
-2. Choose **try an example atlas**, then **Use as my atlas**.
-3. Send the prompt below.
-4. When the zero-data review opens, inspect it, press **Allow access**, close the
-   review, and tell the assistant to continue.
-5. Confirm that the collection opens as a visible, unsaved draft.
-6. Press **Stop access** in Settings and confirm that the five data tools vanish.
+### Agent and connection
 
-> Use Resonate's site tools. Open the assistant-access review first. After I
-> approve and close it, find Paris places I still want to visit that were
-> recommended by Marta. Explain why two fit together, then prepare an unsaved
-> collection called Marta's Paris. Do not save or share anything.
+Use the latest ChatGPT desktop app in a personal workspace. Enable **Settings →
+Browser → Permissions → Enable site tools**, use ChatGPT Work or Codex with
+GPT-5.6 Sol or GPT-5.6 Terra, and open
+[resonate.select](https://resonate.select/) in the built-in browser. GPT-5.6
+Luna, Enterprise workspaces, and Edu workspaces do not currently expose Site
+tools. These requirements come from [OpenAI's Site tools
+documentation](https://learn.chatgpt.com/docs/webmcp).
+
+No Resonate login, API key, plugin, extension, OAuth connection, or standalone
+MCP server is required. The top-level page registers its tools through
+`document.modelContext.registerTool`; a browser without WebMCP support still
+runs Resonate but does not expose those direct tools.
+
+### Clean state
+
+Use a clean ChatGPT browser state. If you instead use **Settings → Browser →
+Clear browsing data**, include cookies and site data. That permanently deletes
+any atlas already stored there, so download a private backup first when there is
+anything to keep. Stay in one Resonate tab. Choose **try an example atlas**,
+then **Use as my atlas**. The clean example contains 31 places, one path, and 14
+books: 46 records. Before consent, **Site tools → Available site tools** must
+show only `review_assistant_access`.
+
+Use three messages so every visible review is closed before the next one opens.
+
+1. Send:
+
+   > Use Resonate's site tools. Open the assistant-access review first. Do
+   > nothing else until I approve and close it.
+
+   The assistant calls `review_assistant_access({})`. Confirm that the result
+   says `dataExposed: false`, `saved: false`, and `shared: false`. The person
+   reads the scope, presses **Allow access**, waits for **on in this browser**,
+   and closes the review. The one review tool is replaced by exactly five:
+   `atlas_overview`, `search_atlas`, `show_atlas_item`, `prepare_place`, and
+   `prepare_list`.
+
+2. Send:
+
+   > Access is approved and the review is closed. Get an atlas overview. Find
+   > Paris places with status wishlist, recommended by Marta, kind place, and
+   > limit 10. Explain in one sentence why the matches fit together. Open Ogata
+   > in Resonate and stop so I can review it.
+
+   The expected calls are `atlas_overview({})`, then
+   `search_atlas({ city: "Paris", status: "wishlist", recommended_by: "Marta",
+   kind: "place", limit: 10 })`, then `show_atlas_item` with Ogata's current
+   search-result id. The overview reports 31 places, one path, and 14 books;
+   Marta appears as a recommendation source twice. Search returns exactly
+   **Septime** and **Ogata**. The Ogata surface says **assistant view · read
+   only** and **recommended by Marta**. Close it before continuing.
+
+3. Send:
+
+   > I closed Ogata. Prepare an unsaved collection titled “Marta's Paris” from
+   > the two IDs returned by that search. Use this note exactly: “Lunch at
+   > Septime, then tea and art at Ogata.” Do not save or share it.
+
+   The assistant calls `prepare_list` with the two ids from this run. IDs are
+   minted when the example is adopted and must never be copied from an earlier
+   run. Confirm `itemCount: 2`, `visibleChange: true`, `saved: false`, and
+   `shared: false`. Leave **save collection** and **copy collection link**
+   untouched. Closing that untouched draft saves nothing.
+
+Finally, press **Stop access** in Settings. The five data tools must disappear
+and only `review_assistant_access` must return. When available, **Site tools →
+Recently used** provides a browser-native record of the calls.
+
+### Troubleshooting
+
+- No Site tools menu: update the desktop app, enable Site tools, use Sol or
+  Terra, and check that the workspace is neither Enterprise nor Edu.
+- No discovered tool: keep the top-level Resonate page open, reload it, and
+  confirm this is the built-in browser rather than an ordinary browser tab.
+- `setupRequired: true`: finish **Use as my atlas**, then call
+  `review_assistant_access` again.
+- Five tools do not appear: wait for **on in this browser**, close the review,
+  and send a new message. If necessary, stop access and allow it again.
+- `review_in_progress`: close the visible review, then retry the same call.
+- Anything other than Septime and Ogata: the example atlas was changed or only
+  previewed. Start with fresh site data and adopt it again.
+- `item_unavailable`: search again and use the ids returned in the current run.
+- The unfiltered draft correctly starts at **2 selected · 46 visible**. The
+  gallery's **2 selected · 9 visible** view is made by the person typing
+  `Paris` into **Find items**. That changes no selection and is not a tool
+  effect.
 
 ## Demo video: 2 minutes 40 seconds
 
@@ -135,8 +213,8 @@ record.
   Marta**. State that the data is local to this browser.
 - **0:35-0:55:** Ask the assistant to begin. Show that the only available tool
   opens a zero-data review and cannot approve itself.
-- **0:55-1:40:** Approve, close, and continue. Show overview, provenance-filtered
-  search, the assistant's short explanation, and the visible collection draft.
+- **0:55-1:40:** Approve, close, and continue. Show the overview, exact
+  provenance-filtered search, Ogata's read-only view, and the collection draft.
 - **1:40-2:05:** Point to **save collection** but do not press it. Show the
   structured result saying `saved: false` and `shared: false`.
 - **2:05-2:25:** Revoke access. Show the five tools disappearing.
@@ -144,8 +222,10 @@ record.
   use private local context without giving it ownership of the user's truth.”
 
 Record a clean synthetic atlas, no personal data, no background music, and a
-voice track. Keep the final public YouTube video under three minutes and verify
-it while logged out.
+voice track. Record the core flow in a genuine WebMCP-capable browser; the
+gallery capture shim is for reproducible still images, not proof of live agent
+discovery. Keep the final public YouTube video under three minutes and verify it
+while logged out.
 
 ## Verification
 

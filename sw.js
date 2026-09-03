@@ -2,7 +2,7 @@
 // Pages stay network first. Exact files from this release's shell are already
 // immutable by address, so they come straight from the offline copy.
 
-const V = 'v=rf157';
+const V = 'v=rf158';
 const CACHE_PREFIX = 'resonate-shell-';
 const CACHE = `${CACHE_PREFIX}${V}`;
 
@@ -70,7 +70,7 @@ const SHELL = [
 ];
 
 // Search is part of a release address. A request for app.js?v=rf147 is not a
-// request for app.js?v=rf157, and must not be answered with whichever copy a
+// request for app.js?v=rf158, and must not be answered with whichever copy a
 // broad ignoreSearch lookup happens to find. Navigations are excluded below:
 // even ./ and index.html go to the network first when they are documents.
 const CURRENT_SHELL_URLS = new Set(SHELL.map(u => new URL(u, self.location.href).href));

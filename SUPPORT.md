@@ -18,13 +18,20 @@ they belong to the same browser and site address.
 
 ## use it with an assistant
 
-Open **Settings**, then **assistant access**.
+Resonate itself works in ordinary mobile and desktop browsers. Direct assistant
+tools currently need a browser with Site tools. The simplest path is the latest
+ChatGPT desktop app: enable **Settings → Browser → Permissions → Enable site
+tools**, use ChatGPT Work or Codex with GPT-5.6 Sol or Terra, and open Resonate
+in the built-in browser. There is no Resonate account, API key, plugin, or
+separate MCP server to connect.
 
-If the browser offers direct tools, press **Allow access**. The
-assistant can search records included in sharing and prepare a place or list on
-screen. It cannot save, delete, share, or say you have been somewhere. Close
-any open review before asking it to show or prepare something, then make the
-final decision in Resonate yourself. Turn access off from the same place.
+In Resonate, open **Settings**, then **assistant access**.
+
+If the browser offers direct tools, press **Allow access**. These Resonate tools
+can search records included in sharing and prepare a place or collection on
+screen. They cannot save, delete, share, or mark visits. Close any open review
+before asking the assistant to show or prepare something, then make the final
+decision in Resonate yourself. Turn access off from the same place.
 
 If direct tools are unavailable, press **Review assistant copy** instead. Read
 the disclosure, download it, and hand that file to the assistant. Records

@@ -240,7 +240,8 @@ test('the five tools are narrow, bounded, annotated, and structurally refuse for
   assert.equal(proposed.data.requiresHumanAction, true);
   assert.match(proposed.data.nextAction, /Add to my atlas/);
   assert.equal(drafted.data.requiresHumanAction, true);
-  assert.match(drafted.data.nextAction, /Save collection/);
+  assert.match(drafted.data.nextAction, /choosing Save collection/i);
+  assert.match(drafted.data.nextAction, /closing an untouched draft saves nothing/i);
   assert.equal(calls.length, 3);
   await assert.rejects(() => tools[2].execute({ id: 'private', kind: 'place' }), /not available/);
   await assert.rejects(() => tools[2].execute({ id: 'p1' }), /kind is required/);
@@ -308,6 +309,7 @@ test('the access-off tool is a strict zero-data door to human review and never g
     access: 'off',
     dataExposed: false,
     requiresHumanAction: true,
+    nextAction: 'Wait while the owner reviews access. If they allow it, they will close the review and tell you to continue.',
     availableAfterApproval: [...AGENT_DATA_TOOL_NAMES],
   });
   assert.equal(opened, 1);
@@ -350,7 +352,7 @@ test('the access-off tool returns a zero-data human handoff when atlas setup com
   disconnectBrowserAgent();
 });
 
-test('access changes atomically replace the review door and the five data tools', async () => {
+test('access changes leave only the review door or the five data tools once settled', async () => {
   const registered = new Map();
   const signals = [];
   const document = { modelContext: { registerTool(tool, { signal } = {}) {

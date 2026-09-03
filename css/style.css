@@ -1579,6 +1579,7 @@ a.word-btn { text-decoration: none; display: inline-block; }
    paragraph's gap. A paragraph following its own row keeps the two. */
 .set-row-sub + .set-row-sub { margin-top: 11px; }
 .word-row { display: flex; flex-wrap: wrap; gap: 8px 20px; }
+.agent-next[data-ready="true"] { color: var(--ink); }
 
 /* A capability state is a sentence, not a settings switch pretending every
    browser can do the same thing. The small station is enough to make on/off

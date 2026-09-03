@@ -16,21 +16,51 @@ and no server copy to scrape. WebMCP gives the assistant a small, typed door
 into the live page while the ordinary interface remains the place where a
 person reviews access and commits changes.
 
+### Connect an agent
+
+The simplest supported path is the latest ChatGPT desktop app. In a personal
+workspace, enable **Settings → Browser → Permissions → Enable site tools**, use
+ChatGPT Work or Codex with GPT-5.6 Sol or GPT-5.6 Terra, and open Resonate in
+the built-in browser. See
+[OpenAI's current Site tools guide](https://learn.chatgpt.com/docs/webmcp).
+
+There is no Resonate account, API key, plugin, browser extension, or separate
+MCP server to connect. The open page registers its own tools. For a clean
+walkthrough, use a browser state that has not opened Resonate. If you need to
+clear cookies and site data, first choose **download backup file** in Resonate
+Settings: clearing them permanently erases that browser's local atlas.
+
 ### Try the complete flow
 
-1. Open [Resonate](https://resonate.select/) in ChatGPT's in-app browser.
-2. On a fresh atlas, choose **try an example atlas**, then **Use as my atlas**.
-3. Ask:
+1. Open [Resonate](https://resonate.select/) in that built-in browser. Choose
+   **try an example atlas**, then **Use as my atlas**.
+2. Ask:
 
-   > Use Resonate's site tools. Open the assistant-access review first. After I
-   > approve and close it, find Paris places I still want to visit that were
-   > recommended by Marta. Explain why two fit together, then prepare an
-   > unsaved collection called Marta's Paris. Do not save or share anything.
+   > Use Resonate's site tools. Open the assistant-access review first. Do
+   > nothing else until I approve and close it.
 
-4. Read the review, press **Allow access**, close it, and tell the assistant to
-   continue. The final collection is a visible draft. Closing it saves nothing.
-5. In **Settings**, press **Stop access**. The five data tools are revoked and
-   only the zero-data review door remains.
+3. Read the review, press **Allow access**, wait for **on in this browser**, and
+   close it. Then ask:
+
+   > Access is approved and the review is closed. Get an atlas overview. Find
+   > Paris places with status wishlist, recommended by Marta, kind place, and
+   > limit 10. Explain in one sentence why the matches fit together. Open Ogata
+   > in Resonate and stop so I can review it.
+
+4. Close Ogata, then ask:
+
+   > I closed Ogata. Prepare an unsaved collection titled “Marta's Paris” from
+   > the two IDs returned by that search. Use this note exactly: “Lunch at
+   > Septime, then tea and art at Ogata.” Do not save or share it.
+
+5. Leave **save collection** and **copy collection link** untouched, then close
+   the untouched draft. In
+   **Settings**, press **Stop access**.
+
+A clean run shows one zero-data tool before consent, five bounded tools after
+it, exactly **Septime** and **Ogata**, a visible draft with `saved: false` and
+`shared: false`, and only the review tool again after revocation. See
+[`CHALLENGE.md`](CHALLENGE.md) for the exact trace and recovery steps.
 
 One tool exists before consent; five replace it after consent:
 
@@ -43,9 +73,9 @@ One tool exists before consent; five replace it after consent:
 | `prepare_place` | Open a sourced place proposal | Unsaved until the person adds it |
 | `prepare_list` | Open a collection draft from search results | Unsaved until the person saves it |
 
-The design rule is simple: **the assistant finds and prepares; the person
-decides and commits.** In particular, an assistant cannot claim the owner has
-visited somewhere, save, delete, publish, or share.
+The WebMCP design rule is simple: **the assistant finds and prepares; the person
+decides and commits.** These WebMCP tools cannot claim the owner has visited
+somewhere, save, delete, publish, or share.
 
 The implementation is in [`js/agent.js`](js/agent.js). The complete disclosure
 and authority contract is in [`ASSISTANT-ACCESS.md`](ASSISTANT-ACCESS.md), with
@@ -59,17 +89,19 @@ verification checklist.
 Resonate predates the challenge, and its first WebMCP prototype landed on
 August 23. During the challenge period, the integration was rebuilt with native
 structured results, strict schemas, bounded and stale-safe pagination, explicit
-effect metadata, cancellation, registration timeouts, atomic consent and
+effect metadata, cancellation, registration timeouts, fail-closed consent and
 revocation, a zero-data pre-consent review, and cross-tab and back-forward-cache
 race tests. This release adds recommendation-source summaries and provenance
 search, making the trust network rather than a generic place list available to
 the assistant.
 
-This challenge repository is intentionally a one-commit release snapshot. The
+This challenge repository began as a one-commit release snapshot. The
 [timestamped challenge-period record](https://github.com/jonashertner/resonate/compare/c957ceb65ef329cd078f15e68212d869eddc6f5e...d52219b54ac900d4f8a18b932d5c9596eacee378)
 documents the qualifying work added after the last pre-period baseline and
-before the September 2 submission build. [`CHALLENGE.md`](CHALLENGE.md)
-distinguishes the earlier prototype from that work in detail.
+through the September 2 release candidate. The September 3 pre-deadline release
+refines the consent handoff, tool guidance, responsive tests, judge instructions,
+and matching gallery frame. [`CHALLENGE.md`](CHALLENGE.md) distinguishes the
+earlier prototype from that work in detail.
 
 ## The idea
 

@@ -3649,6 +3649,7 @@ test('browser-agent data tools are opt-in while one zero-data review door stays 
     access: 'off',
     dataExposed: false,
     requiresHumanAction: true,
+    nextAction: 'Wait while the owner reviews access. If they allow it, they will close the review and tell you to continue.',
     availableAfterApproval: [
       'atlas_overview', 'search_atlas', 'show_atlas_item', 'prepare_place', 'prepare_list',
     ],
@@ -3666,8 +3667,15 @@ test('browser-agent data tools are opt-in while one zero-data review door stays 
   expect(await page.evaluate(() => document.activeElement === document.querySelector('#agentAccessOverlay')))
     .toBe(true);
   await expect(page.locator('#agentReviewCopy')).toHaveText(
-    'Allowing access lets Resonate’s browser tools search records included in sharing and read exact locations, addresses, notes, links, tags, and recommendation names and dates. They can open items and prepare places or collections. They cannot read excluded records or your People list, and cannot save, delete, share, or mark visits. Access stays on in this browser until you stop it. Your assistant provider may process returned data under its own terms.',
+    'Resonate’s browser tools can search and open records included in sharing, and prepare places or collections. They cannot read excluded records or your People list, or save, delete, share, or mark visits.',
   );
+  await expect(page.locator('#agentReviewData')).toHaveText(
+    'Results may include exact locations, addresses, notes, links, tags, and recommendation names and dates. Your assistant provider may process them under its own terms. Access stays on in this browser until you stop it.',
+  );
+  await expect(page.locator('#agentReviewNext')).toHaveText(
+    'No atlas data is exposed through these tools until you choose Allow access.',
+  );
+  await expect(page.locator('#agentAccessOverlay [aria-live="polite"]')).toHaveCount(1);
   const toggle = page.locator('#agentReviewToggle');
   await expect(toggle).toHaveAttribute('aria-pressed', 'false');
   await expect(toggle).toHaveText('Allow access');
@@ -3683,6 +3691,10 @@ test('browser-agent data tools are opt-in while one zero-data review door stays 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(toggle).toHaveText('Stop access');
   await expect(page.locator('#agentReviewState')).toContainText('on in this browser');
+  await expect(page.locator('#agentReviewNext')).toHaveText(
+    'Close this review, then tell your assistant “Continue.”',
+  );
+  await expect(page.locator('#agentReviewNext')).toHaveAttribute('data-ready', 'true');
   await expect.poll(() => page.evaluate(() => [...window.__agentTools.keys()].sort())).toEqual([
     'atlas_overview', 'prepare_list', 'prepare_place', 'search_atlas', 'show_atlas_item',
   ]);
@@ -3696,7 +3708,32 @@ test('browser-agent data tools are opt-in while one zero-data review door stays 
   expect(held.error.code).toBe('review_in_progress');
   expect(held.error.retryable).toBe(true);
   expect(held.summary).toContain('Finish or close');
-  await page.keyboard.press('Escape');
+  const wideViewport = page.viewportSize();
+  for (const viewport of [{ width: 390, height: 844 }, { width: 320, height: 480 }]) {
+    await page.setViewportSize(viewport);
+    await page.locator('#agentReviewNext').scrollIntoViewIfNeeded();
+    const mobileReview = await page.evaluate(() => {
+      const overlay = document.querySelector('#agentAccessOverlay');
+      const close = overlay.querySelector('[data-close]').getBoundingClientRect();
+      return {
+        closeVisible: close.top >= 0 && close.bottom <= innerHeight
+          && close.left >= 0 && close.right <= innerWidth,
+        overlayWidth: overlay.scrollWidth,
+        overlayViewportWidth: overlay.clientWidth,
+        pageWidth: document.documentElement.scrollWidth,
+        viewportWidth: document.documentElement.clientWidth,
+      };
+    });
+    expect(mobileReview.closeVisible, `assistant review lost its close control at ${viewport.width}×${viewport.height}`).toBe(true);
+    expect(mobileReview.overlayWidth, `assistant review clipped horizontally at ${viewport.width}×${viewport.height}`).toBeLessThanOrEqual(
+      mobileReview.overlayViewportWidth,
+    );
+    expect(mobileReview.pageWidth, `assistant review widened the page at ${viewport.width}×${viewport.height}`).toBeLessThanOrEqual(
+      mobileReview.viewportWidth,
+    );
+  }
+  if (wideViewport) await page.setViewportSize(wideViewport);
+  await page.locator('#agentAccessOverlay [data-close]').click();
   await expect(page.locator('#agentAccessOverlay')).toBeHidden();
   if (await page.locator('#indexOverlay').isVisible()) await page.locator('#indexClose').click();
 

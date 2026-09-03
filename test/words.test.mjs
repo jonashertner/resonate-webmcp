@@ -358,13 +358,20 @@ test('no surface explains itself past a breath', () => {
 
 test('assistant access and place proposals say exactly what the person controls', () => {
   const app = spoken('js/app.js');
-  assert.match(app, /Let assistants work with records included in sharing\./);
+  const page = spoken('index.html');
+  assert.match(app, /Let an assistant search records included in sharing and prepare drafts\./);
+  assert.match(app, /Resonate’s browser tools can search and open records included in sharing, and prepare places or collections\./);
   assert.match(app, /exact locations, addresses, notes, links, tags, and recommendation names and dates\./);
-  assert.match(app, /They can open items and prepare places or collections\./);
-  assert.match(app, /They cannot read excluded records or your People list, and cannot save, delete, share, or mark visits\./);
+  assert.match(app, /They cannot read excluded records or your People list, or save, delete, share, or mark visits\./);
   assert.match(app, /Access stays on in this browser until you stop it\./);
+  assert.match(app, /Close this review, then tell your assistant “Continue\.”/);
+  assert.match(app, /No atlas data is exposed through these tools until you choose Allow access\./);
+  assert.doesNotMatch(app, /Nothing changes until you choose Allow access|Assistant tools can search/);
   assert.doesNotMatch(app, /Only you can save, delete, share, or mark visits|Excluded records are not exposed/,
     'assistant copy must describe Resonate tools, not claim control over every browser agent');
+  assert.match(page, /Its browser tools expose only what you include in sharing\./);
+  assert.doesNotMatch(page, /Your assistant sees only what you allow|Only you can save or share/,
+    'the opening must scope its promises to Resonate browser tools');
   for (const label of ['Allow access', 'Review assistant copy', 'Read data contract']) {
     assert.match(app, new RegExp(label));
   }

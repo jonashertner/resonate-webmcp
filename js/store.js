@@ -1,11 +1,11 @@
 // store.js — persistence, models, demo data
 
-import { normImport, readArchive, readLocal, losses, setAside, normPlace, normRoute, normRoutes, normFolioRefs, normLetters, normPost, isMsgId, POST_KEPT, ARCHIVE_VERSION, PORTABLE_SETTINGS } from './schema.js?v=rf157';
-import { semanticallyEqual } from './canonical.js?v=rf157';
-import { cityLabel, oneSpelling, PLACELESS } from './find.js?v=rf157';
-import { measure } from './route.js?v=rf157';
-import { buildPayload } from './share.js?v=rf157';
-import { inlinePicturesHeld, inlinePicturesByPlace, carryKeys } from './photos.js?v=rf157';
+import { normImport, readArchive, readLocal, losses, setAside, normPlace, normRoute, normRoutes, normFolioRefs, normLetters, normPost, isMsgId, POST_KEPT, ARCHIVE_VERSION, PORTABLE_SETTINGS } from './schema.js?v=rf158';
+import { semanticallyEqual } from './canonical.js?v=rf158';
+import { cityLabel, oneSpelling, PLACELESS } from './find.js?v=rf158';
+import { measure } from './route.js?v=rf158';
+import { buildPayload } from './share.js?v=rf158';
+import { inlinePicturesHeld, inlinePicturesByPlace, carryKeys } from './photos.js?v=rf158';
 
 const K_PLACES = 'resonate.places.v1';
 const K_TAGS = 'resonate.tags.v1';

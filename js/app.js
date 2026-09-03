@@ -3,23 +3,23 @@
 // summoned posters. One field, one ink — and one counter-ink for
 // the voices of other people.
 
-import { store, newPlace, newTag, newRoute, newFolio, newBook, demoData, baseTags, TAG_STATIONS, setWriteFailedHandler, unreadableKeys, releaseUnreadable, mayLeave } from './store.js?v=rf157';
-import { parseGPX, simplify, measure, profile, encodePath, fmtKm, fmtHours, effort } from './route.js?v=rf157';
-import { searchGeo, suggestGeo, reverseGeo, fmtDMS, haversineKm, fmtDistance } from './geocode.js?v=rf157';
-import * as mapView from './map.js?v=rf157';
-import { makeShareUrl, makeAskUrl, makeThanksUrl, makeIntroUrl, parseShareHash, readPayload, clearShareHash, buildPayload, disclosureCounts, packPayload } from './share.js?v=rf157';
-import { normPayload, classifyFile, SHARE_VERSION, LIMITS } from './schema.js?v=rf157';
-import { mergeLetters, markOf, onIntroduction, onVersion, routeOf, maySend, PAIRING, PAIRING_VERSION } from './pairing.js?v=rf157';
-import { mintIdentity, identityFrom, pubFrom, sealLetter, openLetter, senderOf, newMsgId, keyId, LETTER_LIMITS } from './letters.js?v=rf157';
-import { resonance, verdict, evidenceLines, grounds, samePlace } from './kinship.js?v=rf157';
-import { exifGPS } from './exif.js?v=rf157';
-import { seal, unseal, makeClient, burnPatch, syncGuard, unfinishedJoins, forgetJoins, CLUB_URL, PRICE, TESTING } from './club.js?v=rf157';
-import * as photoStore from './photos.js?v=rf157';
-import { readShared, coordsIn, alreadyHeld } from './capture.js?v=rf157';
-import { cityLabel, oneSpelling, groupByCity, citiesHeld, wordsOf, answers, cityTyped, PLACELESS } from './find.js?v=rf157';
-import { evening, deviceZone } from './evening.js?v=rf157';
-import { AgentToolError, agentCapability, connectBrowserAgent, disconnectBrowserAgent } from './agent.js?v=rf157';
-import { recordState, searchLibrary, stateLabel } from './library.js?v=rf157';
+import { store, newPlace, newTag, newRoute, newFolio, newBook, demoData, baseTags, TAG_STATIONS, setWriteFailedHandler, unreadableKeys, releaseUnreadable, mayLeave } from './store.js?v=rf158';
+import { parseGPX, simplify, measure, profile, encodePath, fmtKm, fmtHours, effort } from './route.js?v=rf158';
+import { searchGeo, suggestGeo, reverseGeo, fmtDMS, haversineKm, fmtDistance } from './geocode.js?v=rf158';
+import * as mapView from './map.js?v=rf158';
+import { makeShareUrl, makeAskUrl, makeThanksUrl, makeIntroUrl, parseShareHash, readPayload, clearShareHash, buildPayload, disclosureCounts, packPayload } from './share.js?v=rf158';
+import { normPayload, classifyFile, SHARE_VERSION, LIMITS } from './schema.js?v=rf158';
+import { mergeLetters, markOf, onIntroduction, onVersion, routeOf, maySend, PAIRING, PAIRING_VERSION } from './pairing.js?v=rf158';
+import { mintIdentity, identityFrom, pubFrom, sealLetter, openLetter, senderOf, newMsgId, keyId, LETTER_LIMITS } from './letters.js?v=rf158';
+import { resonance, verdict, evidenceLines, grounds, samePlace } from './kinship.js?v=rf158';
+import { exifGPS } from './exif.js?v=rf158';
+import { seal, unseal, makeClient, burnPatch, syncGuard, unfinishedJoins, forgetJoins, CLUB_URL, PRICE, TESTING } from './club.js?v=rf158';
+import * as photoStore from './photos.js?v=rf158';
+import { readShared, coordsIn, alreadyHeld } from './capture.js?v=rf158';
+import { cityLabel, oneSpelling, groupByCity, citiesHeld, wordsOf, answers, cityTyped, PLACELESS } from './find.js?v=rf158';
+import { evening, deviceZone } from './evening.js?v=rf158';
+import { AgentToolError, agentCapability, connectBrowserAgent, disconnectBrowserAgent } from './agent.js?v=rf158';
+import { recordState, searchLibrary, stateLabel } from './library.js?v=rf158';
 
 // One word ties a tester's report to the exact offline shell they are using.
 // It comes from this module's own address, so it cannot drift from the cache
@@ -69,7 +69,8 @@ function sameAgentTarget(a, b) {
     && a.registerTool === b.registerTool;
 }
 
-const AGENT_ACCESS_COPY = 'Allowing access lets Resonate’s browser tools search records included in sharing and read exact locations, addresses, notes, links, tags, and recommendation names and dates. They can open items and prepare places or collections. They cannot read excluded records or your People list, and cannot save, delete, share, or mark visits. Access stays on in this browser until you stop it. Your assistant provider may process returned data under its own terms.';
+const AGENT_ACCESS_COPY = 'Resonate’s browser tools can search and open records included in sharing, and prepare places or collections. They cannot read excluded records or your People list, or save, delete, share, or mark visits.';
+const AGENT_ACCESS_DATA_COPY = 'Results may include exact locations, addresses, notes, links, tags, and recommendation names and dates. Your assistant provider may process them under its own terms. Access stays on in this browser until you stop it.';
 
 function paintAgentAccess() {
   const allowed = store.settings.agentAccess === true;
@@ -100,6 +101,21 @@ function paintAgentAccess() {
     const copy = $(selector);
     if (copy) copy.textContent = AGENT_ACCESS_COPY;
   });
+  ['#agentAccessData', '#agentReviewData'].forEach(selector => {
+    const copy = $(selector);
+    if (copy) copy.textContent = AGENT_ACCESS_DATA_COPY;
+  });
+  const reviewNext = $('#agentReviewNext');
+  if (reviewNext) {
+    reviewNext.dataset.ready = String(live);
+    reviewNext.textContent = agentAccessState.connecting
+      ? 'Setting up the tools…'
+      : live
+        ? 'Close this review, then tell your assistant “Continue.”'
+        : allowed
+          ? 'Access is saved, but browser tools are unavailable here.'
+          : 'No atlas data is exposed through these tools until you choose Allow access.';
+  }
   ['#agentAccessToggle', '#agentReviewToggle'].forEach(selector => {
     const toggle = $(selector);
     if (!toggle) return;
@@ -136,13 +152,14 @@ function renderAgentAccessReview() {
   if (!body) return;
   body.innerHTML = `
     <section class="set-sec agent-access-review">
-      <div class="agent-state mono" id="agentReviewState" data-state="off" aria-live="polite"></div>
+      <div class="agent-state mono" id="agentReviewState" data-state="off"></div>
       <p class="set-row-sub" id="agentReviewCopy"></p>
+      <p class="set-row-sub" id="agentReviewData"></p>
       <div class="word-row">
         <button class="word-btn" id="agentReviewToggle" data-agent-access-toggle aria-pressed="false">Allow access</button>
         <a class="word-btn quiet" href="read.html?d=assistant">Read data contract</a>
       </div>
-      <p class="set-row-sub set-note">Nothing changes until you choose Allow access.</p>
+      <p class="set-row-sub set-note agent-next" id="agentReviewNext" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>`;
   paintAgentAccess();
   bindAgentAccessToggle(body);
@@ -8350,7 +8367,7 @@ function renderSettings() {
         <h2 class="set-summary">
           <span class="set-summary-copy">
             <span class="set-summary-title">assistant access</span>
-            <span class="set-summary-note">Let assistants work with records included in sharing.</span>
+            <span class="set-summary-note">Let an assistant search records included in sharing and prepare drafts.</span>
           </span>
           <span class="set-summary-state mono" id="agentAccessSummary">off</span>
         </h2>
@@ -8358,6 +8375,7 @@ function renderSettings() {
       <div class="set-detail">
         <div class="agent-state mono" id="agentAccessState" data-state="off" aria-live="polite"></div>
         <p class="set-row-sub" id="agentAccessCopy"></p>
+        <p class="set-row-sub" id="agentAccessData"></p>
         <div class="word-row">
           <button class="word-btn quiet" id="agentAccessToggle" data-agent-access-toggle aria-pressed="false">Allow access</button>
           <button class="word-btn quiet" id="agentCopyFallback">Review assistant copy</button>

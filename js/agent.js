@@ -494,6 +494,7 @@ export function makeAgentAccessTool({ reviewAccess } = {}) {
         access: 'off',
         dataExposed: false,
         requiresHumanAction: true,
+        nextAction: 'Wait while the owner reviews access. If they allow it, they will close the review and tell you to continue.',
         availableAfterApproval: [...AGENT_DATA_TOOL_NAMES],
       }, { visibleChange: true });
     },
@@ -527,10 +528,10 @@ export function makeAgentTools({ authorize, disclosure, showItem, preparePlace, 
         properties: {
           query: { type: 'string', maxLength: 200, description: 'Words to find in names, places, tags, notes, and links.' },
           kind: { type: 'string', enum: ['all', 'place', 'path', 'book'], description: 'Type of atlas item.' },
-          status: { type: 'string', enum: ['all', 'visited', 'walked', 'wishlist'], description: 'Exact saved status.' },
+          status: { type: 'string', enum: ['all', 'visited', 'walked', 'wishlist'], description: 'Exact saved state; use wishlist for a place the owner still wants to visit.' },
           city: { type: 'string', maxLength: 80, description: 'City or country to narrow by.' },
           tag: { type: 'string', maxLength: 40, description: 'Exact tag name to narrow by.' },
-          recommended_by: { type: 'string', maxLength: 60, description: 'Exact person name in a recommendation trail.' },
+          recommended_by: { type: 'string', maxLength: 60, description: 'Exact person name anywhere in the recommendation trail; use for recommended by or from that person.' },
           limit: { type: 'integer', minimum: 1, maximum: 10, description: 'Maximum matches requested.' },
           cursor: { type: 'string', maxLength: 90, description: 'Continuation from the prior page; keep the same search fields.' },
         },
@@ -616,8 +617,8 @@ export function makeAgentTools({ authorize, disclosure, showItem, preparePlace, 
     },
     {
       name: 'prepare_list',
-      title: 'Prepare a list',
-      description: 'Open a visible draft list using ids from search_atlas. The owner can revise and save it; closing untouched saves nothing and this tool never shares it.',
+      title: 'Prepare a collection',
+      description: 'Open a visible, unsaved collection draft using exact ids from search_atlas. The owner may revise or save it. Closing an untouched draft saves nothing; saving always requires an explicit Save collection choice. This tool never shares.',
       inputSchema: {
         type: 'object', additionalProperties: false,
         properties: {
@@ -640,7 +641,7 @@ export function makeAgentTools({ authorize, disclosure, showItem, preparePlace, 
         abortIfNeeded(signal);
         return envelope('Draft opened for review. Nothing was saved or shared.', {
           kind: 'list', itemCount: proposal.itemIds.length, requiresHumanAction: true,
-          nextAction: 'The owner revises the draft and chooses Save collection.',
+          nextAction: 'The owner reviews the draft. Saving always requires choosing Save collection; closing an untouched draft saves nothing.',
         }, { visibleChange: true });
       },
     },
