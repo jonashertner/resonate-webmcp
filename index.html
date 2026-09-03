@@ -7,13 +7,13 @@
 <title>Resonate. A personal atlas</title>
 <meta name="description" content="Resonate is a private atlas that remembers who recommended each place and lets your assistant prepare collections from only the records you allow.">
 <meta property="og:title" content="Resonate. A private atlas guided by people you trust.">
-<meta property="og:description" content="Remember who recommended each place. Let your assistant prepare from only what you allow; only you can save or share.">
+<meta property="og:description" content="Remember who recommended each place. Let bounded browser tools prepare from only what you allow, with every lasting action returned for review.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://resonate.select/">
 <meta property="og:image" content="https://resonate.select/icons/icon-512.png">
 <meta name="twitter:card" content="summary">
 <meta name="application-name" content="Resonate">
-<meta name="resonate-release" content="rf157">
+<meta name="resonate-release" content="rf158">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F7F3EE" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#110D18" media="(prefers-color-scheme: dark)">
@@ -25,7 +25,7 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
 <link rel="stylesheet" href="vendor/markercluster/MarkerCluster.css">
-<link rel="stylesheet" href="css/style.css?v=rf157">
+<link rel="stylesheet" href="css/style.css?v=rf158">
 </head>
 <body class="boot">
 
@@ -293,7 +293,7 @@
      other atlas metadata. The person alone can press the consent word. -->
 <section class="poster" id="agentAccessOverlay" hidden aria-label="Assistant access">
   <header class="poster-head"><h1 class="poster-word">assistant access</h1><button class="poster-x" data-close>close</button></header>
-  <p class="poster-sub">review what Resonate’s browser tools can do.</p>
+  <p class="poster-sub">review what Resonate’s browser tools may read and prepare.</p>
   <div class="poster-body" id="agentAccessReviewBody"></div>
 </section>
 
@@ -310,7 +310,7 @@
 <!-- the threshold: what this is, in plain words, before anything is asked -->
 <section class="threshold" id="threshold" hidden role="dialog" aria-modal="true" aria-labelledby="thWhat">
   <h1 class="th-what" id="thWhat">Let your assistant plan from recommendations by people you trust.</h1>
-  <p class="th-plain">Resonate is a private atlas for places, paths, and books that remembers who led you there. Your assistant sees only what you allow. Only you can save or share.</p>
+  <p class="th-plain">Resonate is a private atlas for places, paths, and books that remembers who led you there. Its browser tools expose only what you include in sharing. They find and prepare; you decide what to save or share.</p>
   <p class="th-quiet">No account. Resonate does not receive your atlas or have access to it. It stays on this device unless you share it or use encrypted club backup.</p>
   <div class="th-go">
     <div class="th-start">
@@ -424,6 +424,6 @@
 <script defer src="vendor/markercluster/leaflet.markercluster.js"></script>
 <script defer src="vendor/lz/lz-string.min.js"></script>
 <script defer src="vendor/argon2/argon2.umd.min.js" integrity="sha384-tP0Wy54CKmng7i9EoTlPySD0hBx6Octj0VS6MfwlnUu111MPa+JLm0CCbep6XJ1W"></script>
-<script type="module" src="js/app.js?v=rf157"></script>
+<script type="module" src="js/app.js?v=rf158"></script>
 </body>
 </html>

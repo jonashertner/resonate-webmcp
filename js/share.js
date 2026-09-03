@@ -2,8 +2,8 @@
 
 /* global LZString */
 
-import { normPayload, KIND_VERSION, BOOKS_RIDE_AT, LIMITS } from './schema.js?v=rf157';
-import { encodePath, simplify } from './route.js?v=rf157';
+import { normPayload, KIND_VERSION, BOOKS_RIDE_AT, LIMITS } from './schema.js?v=rf158';
+import { encodePath, simplify } from './route.js?v=rf158';
 
 // ---------- one payload ----------
 //

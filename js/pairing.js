@@ -21,7 +21,7 @@
 // That is also the ritual the voices surface has taught since it was written.
 // Hand your atlas to one person. When theirs comes back, open it here.
 
-import { normLetters } from './schema.js?v=rf157';
+import { normLetters } from './schema.js?v=rf158';
 
 const te = new TextEncoder();
 const ALPHABET = '0123456789abcdefghjkmnpqrstvwxyz';
