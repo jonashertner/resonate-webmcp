@@ -36,15 +36,19 @@ const framesInOneSecond = (page) => page.evaluate(() => new Promise((done) => {
 test('a second device is painted once it has been brought forward', async ({ page, browser }) => {
   const second = await browser.newContext();
   const other = await second.newPage();
-  // Both devices are let all the way in before either is measured. The app's
-  // opening is itself worth one to three frames a second under software
-  // rendering, which is a real thing about the app and the wrong thing to
-  // measure here: a reading taken during it says nothing about whether webkit
-  // is painting the page, only that the page is busy. The first draft of this
-  // test measured exactly that and failed in the container while the suite it
-  // was guarding passed, which is the useful way round for a mistake.
+  // Both devices are let all the way in, one at a time and while foregrounded,
+  // before either is measured. The app's opening is itself worth one to three
+  // frames a second under software rendering, which is a real thing about the
+  // app and the wrong thing to measure here: a reading taken during it says
+  // nothing about whether webkit is painting the page, only that the page is
+  // busy. A navigation can hand the compositor back to the page opened last,
+  // so foreground this page after the navigation and before waiting on its
+  // animation. The first draft of this test measured that opening and failed
+  // in the container while the suite it was guarding passed, which is the
+  // useful way round for a mistake.
   for (const p of [page, other]) {
     await p.goto('/');
+    await front(p);
     await expect(p.locator('#intro')).toBeHidden({ timeout: 15000 });
     await expect(p.locator('body'))
       .toHaveAttribute('data-entry', /board|field|letter|threshold/, { timeout: 15000 });
