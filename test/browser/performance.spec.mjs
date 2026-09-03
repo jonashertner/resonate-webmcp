@@ -44,7 +44,12 @@ async function ready(page) {
   await expect(page.locator('#intro')).toBeHidden({ timeout: 15000 });
   await expect(page.locator('#fmIndex')).toBeVisible();
   // A returning atlas may choose the board as its first room. Each test begins
-  // on the field so the opening it observes is the gesture under test.
+  // on the field so the opening it observes is the gesture under test. Wait
+  // for the app's own settled-entry signal before asking which room won: the
+  // field chrome can paint a frame before a slower browser raises the board.
+  await expect(page.locator('body')).toHaveAttribute('data-entry', /board|field/, {
+    timeout: 15000,
+  });
   if (await page.locator('#indexOverlay').isVisible()) {
     await page.locator('#indexClose').click();
     await expect(page.locator('#indexOverlay')).toBeHidden();
