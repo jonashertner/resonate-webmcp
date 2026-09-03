@@ -109,10 +109,10 @@ timestamped development record remains available in the original development
 repository. The core qualifying comparison runs from the last pre-period
 baseline to the September 2 release candidate:
 [`c957ceb...d52219b`](https://github.com/jonashertner/resonate/compare/c957ceb65ef329cd078f15e68212d869eddc6f5e...d52219b54ac900d4f8a18b932d5c9596eacee378).
-The only later commit in this challenge repository is a September 3,
-pre-deadline refinement of the consent handoff, agent guidance, responsive
-tests, judge instructions, and matching gallery frame. Judges should evaluate
-only the WebMCP extension documented here and in those records.
+The later September 3 commits in this challenge repository are pre-deadline
+refinements of the consent handoff, agent guidance, responsive tests, judge
+instructions, matching gallery frame, and release-gate stability. Judges
+should evaluate only the WebMCP extension documented here and in those records.
 
 ## Judge walkthrough
 
